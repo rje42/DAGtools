@@ -1,0 +1,8 @@
+*.html
+*.pdf
+*.md
+*.log
+cache
+intro_cache
+intro_files
+figure/

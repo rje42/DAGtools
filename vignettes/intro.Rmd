@@ -1,0 +1,162 @@
+---
+title: "Introduction"
+author: "Robin Evans"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  cache = TRUE
+)
+```
+
+## Preliminaries
+
+You'll need a few packages to get the most out of this one.
+```
+install.packages("rje")
+install.packages("BiDAG")
+```
+The `graph` and `Rgraphviz` packages are hosted on Bioconductor:
+```
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install(version = "3.10")
+library("graph")
+library("Rgraphviz")
+```
+Then call:
+```{r, message=FALSE}
+library(DAGtools)
+```
+
+# A Basic Demonstration
+
+## Discrete Data
+
+First set up a distribution that comes from the DAG
+$X \rightarrow Z \leftarrow Y$.  
+```{r get_prob_dist}
+p <- c(outer(c(0.4,0.6), c(0.7,0.3)))*c(0.2,0.7,0.4,0.8, 0.8,0.3,0.6,0.2)
+dim(p) <- rep(2,3)
+```
+
+Now we can generate some data.
+```{r get_disc_dat}
+set.seed(41)
+n <- 1e3  # number of samples
+levs <- combinations(rep(2,3))  # from rje package
+dat <- levs[sample(1:8, size=n, replace=TRUE, prob = p),]
+head(dat)  # first few samples
+```
+
+Let's set up the MCMC algorithm.  We can use the wrapper function
+`fit_mcmc`.  Specify `scoretype = "bde"` for discrete data, 
+"bge" for continuous.
+```{r do_mcmc_1, message=FALSE}
+out <- fit_mcmc(dat, scoretype = "bde", iterations = 1e5)
+out <- summary(out)
+plot(out)
+```
+In the example above, for instance, the edge pointed from $X \rightarrow Z$
+in `r round(100*out$adj[1,3])`% of the samples, and $X \leftarrow Z$ in the remainder 
+(`r round(100*out$adj[3,1])`%).  In this case it has (erroneously) concluded
+that one of the three graphs $X \rightarrow Z \rightarrow Y$ or 
+$X \leftarrow Z \rightarrow Y$ or $X \leftarrow Z \leftarrow Y$ generated
+the data, and these are indistinguishable and therefore equally likely.
+
+We can increase the sample size, and should obtain the correct graph.
+```{r do_mcmc_1a, message=FALSE, cache=TRUE}
+n <- 1e4  # number of samples
+dat <- levs[sample(1:8, size=n, replace=TRUE, prob = p),]
+out <- fit_mcmc(dat, scoretype = "bde", iterations = 1e5)
+out2 <- summary(out)
+out2
+```
+This time we correctly obtain $X \rightarrow Z$
+in `r round(100*out2$adj[1,3],1)`% of the samples (and $Y \rightarrow Z$ in 
+`r round(100*out2$adj[2,3],1)`%).
+
+### Sampled Graphs
+
+The algorithm provides a sequence of separate sampled DAGs, which we 
+can individually inspect.  
+```{r incidence}
+out2$incidence[[1]]
+```
+The `plot` function can be used to give a summary of the results (by
+default, it shows edges present in 20% of graphs); a double-headed 
+arrow means both directions were present at least this often.  
+```{r plot_graph}
+plot(out2)
+```
+
+## Gaussian Data
+
+Suppose we have continuous data instead, and wish to use 
+a Gaussian likelihood.
+```{r covariance}
+set.seed(42)
+n <- 1e4  # number of samples
+B <- diag(4)
+B[1,3] = 0.3; B[1,4] = 0.2   # regression coefficients
+B[2,3] = 0.25; B[3,4] = 0.5 
+dat <- matrix(rnorm(4*n), ncol=4) %*% solve(B)
+
+cov(dat)
+```
+You can use the function `fit_mcmc` to run things behind 
+the scenes:
+```{r do_mcmc2}
+out <- fit_mcmc(dat, scoretype = "bge", iterations = 1e5)
+out2 <- summary(out)
+out2
+```
+For Gaussian data, we can augment the sampled graphs 
+with parameter samples.  
+```{r augment}
+out2 <- augment_mcmc(out2, dat, verbose = FALSE)
+names(out2)
+```
+Once augmented, we can inspect the estimated 
+causal effects:
+```{r hist}
+hist(out2$CauEff[2,3,], breaks=50)
+```
+The plot method for \code{MCMC_summary} variables 
+
+```{r plot_graph2}
+plot(out2)
+```
+
+## Mediation
+
+Using Gaussian data, we can compute mediators:
+```{r}
+cau_path_34 <- sum_causal_paths(out2, 3, 4)
+```
+We can also plot causal effects with an augmented chain:
+```{r}
+plot_causal_effects(out2)
+```
+
+## Multiple Data Sets
+
+```{r fit_multiple}
+set.seed(47)
+n <- 1e4
+dat2 <- matrix(rnorm(4*n), ncol=4) %*% solve(B)
+out <- fit_multiple(list(dat, dat2), iterations=1e3)
+```
+This returns an augmented chain, so we can (for example)
+try a plot of the causal effects:
+```{r plot_graph3}
+plot_causal_effects(out)
+```
