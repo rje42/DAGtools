@@ -9,12 +9,16 @@ TikzCode(
   file = "",
   z,
   n_pos,
+  bend,
   ud_thresh = 0.5,
   cutoff = 0.1,
-  bend,
   func,
   bend_double = TRUE,
   rev = FALSE,
+  col = c("black", "black", "blue", "red"),
+  labels = NULL,
+  nodesOnTop = TRUE,
+  edgeScale = 1,
   ...
 )
 }
@@ -27,17 +31,25 @@ TikzCode(
 
 \item{n_pos}{optional matrix of node positions (requires Rgraphviz if not specified)}
 
+\item{bend}{edge angles}
+
 \item{ud_thresh}{threshold for drawing edges as undirected}
 
 \item{cutoff}{threshold for including edges}
-
-\item{bend}{edge angles}
 
 \item{func}{vectorized function to transform probabilities}
 
 \item{bend_double}{bend automatically if arrows in two different directions?}
 
 \item{rev}{logical - should thickness and density plotting be reversed?}
+
+\item{col}{colours for undirected, directed and positive and negative edges}
+
+\item{labels}{character vector of labels for nodes}
+
+\item{nodesOnTop}{logical: should nodes be on top of everything else}
+
+\item{edgeScale}{scales edges to a desired width}
 
 \item{...}{other arguments}
 }
@@ -58,4 +70,12 @@ of the line to be related to this quantity.
 If \code{rev = TRUE} then the thickness of the line is related to the
 size of the effect, and the density of colour to the proportion of
 samples containing that effect.
+
+\code{col} is given as a character vector of up to four colours.
+The order is undirected positive and negative, followed by
+directed positive and negative.  Colours are just repeated if
+necessary.
+
+If \code{labels} is not provided these are taken from the
+rownames of \code{x}.
 }

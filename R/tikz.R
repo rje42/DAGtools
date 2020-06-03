@@ -10,6 +10,10 @@
 ##' @param func vectorized function to transform probabilities
 ##' @param bend_double bend automatically if arrows in two different directions?
 ##' @param rev logical - should thickness and density plotting be reversed?
+##' @param col colours for undirected, directed and positive and negative edges
+##' @param labels character vector of labels for nodes
+##' @param nodesOnTop logical: should nodes be on top of everything else
+##' @param edgeScale scales edges to a desired width
 ##' @param ... other arguments
 ##'
 ##' @details If more than \code{ud_thresh} of the edges present
@@ -26,10 +30,25 @@
 ##' size of the effect, and the density of colour to the proportion of
 ##' samples containing that effect.
 ##'
+##' \code{col} is given as a character vector of up to four colours.
+##' The order is undirected positive and negative, followed by
+##' directed positive and negative.  Colours are just repeated if
+##' necessary.
+##'
+##' If \code{labels} is not provided these are taken from the
+##' rownames of \code{x}.
+##'
 ##' @export
-TikzCode <- function(x, file="", z, n_pos, ud_thresh=0.5, cutoff=0.1, bend, func, bend_double=TRUE, rev=FALSE,...) {
+TikzCode <- function(x, file="", z, n_pos, bend,
+                     ud_thresh=0.5, cutoff=0.1, func,
+                     bend_double=TRUE, rev=FALSE,
+                     col=c("black","black","blue","red"), labels=NULL,
+                     nodesOnTop=TRUE, edgeScale = 1, ...) {
   if (missing(func)) func <- function(x) x
   p <- nrow(x)
+  if (p == 0) invisible(NULL)
+
+  if (length(col < 4)) col <- rep_len(col, 4)
 
   ## determine whether edge should be undirected
   # ud_edge <- (x > ud_thresh) & (t(x) > ud_thresh)
@@ -41,8 +60,8 @@ TikzCode <- function(x, file="", z, n_pos, ud_thresh=0.5, cutoff=0.1, bend, func
   ## get values for color intensity and width
   if (!rev) {
     A <- func(x)
-    A[ud_edge] <- A[ud_edge]*(A[ud_edge] + t(A)[ud_edge] > cutoff)
-    A[!ud_edge] <- A[!ud_edge]*(A[!ud_edge] > cutoff)
+    A[ud_edge] <- A[ud_edge]*(abs(A)[ud_edge] + t(abs(A))[ud_edge] > cutoff)
+    A[!ud_edge] <- A[!ud_edge]*(abs(A)[!ud_edge] > cutoff)
 
     if (!missing(z)) {
       W <- abs(z)
@@ -51,8 +70,8 @@ TikzCode <- function(x, file="", z, n_pos, ud_thresh=0.5, cutoff=0.1, bend, func
   }
   else {
     W <- func(x)
-    W[ud_edge] <- W[ud_edge]*(W[ud_edge] + t(W)[ud_edge] > cutoff)
-    W[!ud_edge] <- W[!ud_edge]*(W[!ud_edge] > cutoff)
+    W[ud_edge] <- W[ud_edge]*(abs(W)[ud_edge] + t(abs(W))[ud_edge] > cutoff)
+    W[!ud_edge] <- W[!ud_edge]*(abs(W)[!ud_edge] > cutoff)
 
     if (!missing(z)) {
       A <- abs(z)
@@ -81,14 +100,22 @@ TikzCode <- function(x, file="", z, n_pos, ud_thresh=0.5, cutoff=0.1, bend, func
   # bend_text[bend < 0] = paste("[bend right=", bend[bend < 0], "]", sep="")
 
   ## variable names
-  nms <- rownames(x)
+  if (missing(labels)) nms <- rownames(x)
+  else nms <- labels
 
   ## start a new file
   cat("", file=file)
 
   ## node commands
-  for (i in 1:p) {
-    cat("\\node[rv] (", i, ") at (", n_pos[i,1], ",", n_pos[i,2], ") {", nms[i], "};\n", sep="", file=file, append = TRUE)
+  if (!nodesOnTop) {
+    for (i in 1:p) {
+      cat("\\node[rv] (", i, ") at (", n_pos[i,1], ",", n_pos[i,2], ") {", nms[i], "};\n", sep="", file=file, append = TRUE)
+    }
+  }
+  else {
+    for (i in 1:p) {
+      cat("\\node[rv0] (", i, ") at (", n_pos[i,1], ",", n_pos[i,2], ") {};\n", sep="", file=file, append = TRUE)
+    }
   }
   cat("\n", file=file, append = TRUE)
 
@@ -96,14 +123,31 @@ TikzCode <- function(x, file="", z, n_pos, ud_thresh=0.5, cutoff=0.1, bend, func
   for (i in seq_len(p)) for (j in seq_len(p)[-i]) {
     if (ud_edge[i,j] && A[i,j]+A[j,i] > cutoff) {
       ## draw undirected edge (once only)
-      if (i < j && missing(z)) cat("\\draw[ua, opacity=", (A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
-      else if (i < j && W[i,j]+W[j,i] > 0) cat("\\draw[ua, line width = ", W[i,j]+W[j,i], "mm, opacity=", (A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      if (i < j && missing(z)) cat("\\draw[ua, ", col[1],", opacity=", (A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      else if (i < j && W[i,j]+W[j,i] > 0) cat("\\draw[ua, ", col[1],", line width = ", edgeScale*(W[i,j]+W[j,i]), "mm, opacity=", (A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+    }
+    else if (ud_edge[i,j] && A[i,j]+A[j,i] < -cutoff) {
+      ## draw undirected edge (once only)
+      if (i < j && missing(z)) cat("\\draw[ua, ", col[2],", opacity=", abs(A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      else if (i < j && W[i,j]+W[j,i] > 0) cat("\\draw[ua, ", col[2],", line width = ", edgeScale*(abs(W[i,j]+W[j,i])), "mm, opacity=", abs(A[i,j]+A[j,i]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
     }
     else if (A[i,j] > cutoff) {
       ## draw directed edge
-      if (missing(z)) cat("\\draw[da, opacity=", A[i,j], "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
-      else if (W[i,j] > 0) cat("\\draw[da, line width = ", W[i,j], "mm, opacity=", A[i,j], "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      if (missing(z)) cat("\\draw[da, ", col[3],", opacity=", A[i,j], "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      else if (W[i,j] > 0) cat("\\draw[da, ", col[3],", line width = ", edgeScale*W[i,j], "mm, opacity=", A[i,j], "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
     }
+    else if (A[i,j] < -cutoff) {
+      ## draw directed edge
+      if (missing(z)) cat("\\draw[da, ", col[4],", opacity=", abs(A[i,j]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+      else if (W[i,j] > 0) cat("\\draw[da, ", col[4],", line width = ", edgeScale*W[i,j], "mm, opacity=", abs(A[i,j]), "] (", i, ") to", bend_text[i,j], " (", j, ");\n", sep="", file=file, append = TRUE)
+    }
+  }
+
+  if (nodesOnTop) {
+    for (i in 1:p) {
+      cat("\\node[rv] at (", i, ") {", nms[i], "};\n", sep="", file=file, append = TRUE)
+    }
+    cat("\n", file=file, append = TRUE)
   }
 
   invisible(NULL)
