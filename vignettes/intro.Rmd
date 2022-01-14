@@ -62,7 +62,7 @@ Let's set up the MCMC algorithm.  We can use the wrapper function
 "bge" for continuous.
 ```{r do_mcmc_1, message=FALSE}
 out <- fit_mcmc(dat, scoretype = "bde", iterations = 1e5)
-out <- summary(out)
+out
 plot(out)
 ```
 In the example above, for instance, the edge pointed from $X \rightarrow Z$
@@ -77,25 +77,24 @@ We can increase the sample size, and should obtain the correct graph.
 n <- 1e4  # number of samples
 dat <- levs[sample(1:8, size=n, replace=TRUE, prob = p),]
 out <- fit_mcmc(dat, scoretype = "bde", iterations = 1e5)
-out2 <- summary(out)
-out2
+out
 ```
 This time we correctly obtain $X \rightarrow Z$
-in `r round(100*out2$adj[1,3],1)`% of the samples (and $Y \rightarrow Z$ in 
-`r round(100*out2$adj[2,3],1)`%).
+in `r round(100*out$adj[1,3],1)`% of the samples (and $Y \rightarrow Z$ in 
+`r round(100*out$adj[2,3],1)`%).
 
 ### Sampled Graphs
 
 The algorithm provides a sequence of separate sampled DAGs, which we 
 can individually inspect.  
 ```{r incidence}
-out2$incidence[[1]]
+out$traceadd$incidence[[1]]
 ```
 The `plot` function can be used to give a summary of the results (by
 default, it shows edges present in 20% of graphs); a double-headed 
 arrow means both directions were present at least this often.  
-```{r plot_graph}
-plot(out2)
+```{r plot_graph, eval=FALSE}
+plot(out)
 ```
 
 ## Gaussian Data
@@ -116,13 +115,12 @@ You can use the function `fit_mcmc` to run things behind
 the scenes:
 ```{r do_mcmc2}
 out <- fit_mcmc(dat, scoretype = "bge", iterations = 1e5)
-out2 <- summary(out)
-out2
+out
 ```
 For Gaussian data, we can augment the sampled graphs 
 with parameter samples.  
 ```{r augment}
-out2 <- augment_mcmc(out2, dat, verbose = FALSE)
+out2 <- augment_mcmc(out, dat, verbose = FALSE)
 names(out2)
 ```
 Once augmented, we can inspect the estimated 

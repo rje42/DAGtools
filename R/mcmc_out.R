@@ -20,14 +20,15 @@ fit_multiple <- function(data_sets, scoretype="bge", iterations,  ...)  {
   ##
   for (i in seq_len(n_data)) {
     message(paste("Running MCMC on data set ", i, sep=""))
-    myScore <- scoreparameters(n=ncol(data_sets[[i]]), scoretype=scoretype, data=data_sets[[i]])
-    partition_out[[i]] <- partitionMCMC(myScore, iterations=iterations, verbose=FALSE, ...)$chain
-    partition_out[[i]]$varnames <- names(data_sets[[i]])
+    # if (is.null(colnames(data_sets[[i]]))) colnames(data_sets[[i]]) <- paste0("X",seq_len(ncol(data_sets[[i]])))
+    # myScore <- scoreparameters(scoretype=scoretype, data=data_sets[[i]])
+    partition_out[[i]] <- fit_mcmc(data_sets[[i]], scoretype=scoretype, iterations=iterations, ...)
+    # partition_out[[i]]$varnames <- names(data_sets[[i]])
   }
 
   for (i in seq_len(n_data)) {
     message(paste("Augmenting MCMC for chain ", i, sep=""))
-    partition_out[[i]] <- augment_mcmc(summary.MCMCtrace(partition_out[[i]]), data_sets[[i]])
+    partition_out[[i]] <- augment_mcmc(partition_out[[i]], data_sets[[i]])
   }
 
   message("Merging chains")
@@ -45,52 +46,77 @@ fit_multiple <- function(data_sets, scoretype="bge", iterations,  ...)  {
 ##'
 ##' @details This is basically a wrapper for
 ##' BiDAG's \code{scoreparameters()} and \code{partitionMCMC()},
-##' but which augments
-##' the chain with the variable names extracted
-##' from the original data set.  Returns an object of class
-##' \code{MCMCchain}.
+##' but which augments the chain with an array of sampled adjacencies, the
+##' number of samples and variables, and the average adjacency.  Variable
+##' names are also extracted from the original data set.
+##'
+##' @return An object of class
+##' \code{summary_MCMCchain}.
 ##'
 ##'
 ##' @export
 fit_mcmc <- function(data, scoretype="bge", iterations,  ...)  {
 
-  myScore <- scoreparameters(n=ncol(data), scoretype=scoretype, data=data)
-  partition_out <- partitionMCMC(myScore, iterations=iterations, verbose=FALSE, ...)$chain
-  partition_out$varnames <- names(data)
+  myScore <- scoreparameters(scoretype=scoretype, data=data)
+  out <- partitionMCMC(myScore, iterations=iterations, verbose=FALSE, ...)
+  out$varnames <- names(data)
 
-  partition_out
-}
+  if (!is.null(out)) {
+    B <- out$info$samplesteps
+    p <- nrow(out$DAG)
 
-##' Summarise output from MCMC
-##'
-##' @param object output from \code{BiDAG} package
-##' @param ... other arguments
-##'
-##' @details Constructs the average adjacency matrix
-##' and mean sparsity level.  Replaces list of DAG and partition
-##' scores with vectors.  Also has a print and plot
-##' method.
-##'
-##' @export
-summary.MCMCtrace <- function(object, ...) {
-  B <- length(object$incidence)
-  p <- nrow(object$incidence[[1]])
+    ## get adjacencies
+    adj <- unlist(out$traceadd$incidence)
+    dim(adj) <- c(p,p,B)
 
-  adj <- unlist(object$incidence)
-  dim(adj) <- c(p,p,B)
+    meanAdj <- .rowMeans(adj, p^2, B)
+    dim(meanAdj) <- c(p,p)
+    rownames(meanAdj) = colnames(meanAdj) = out$varnames
+    sparsity <- sum(meanAdj)/choose(p,2)
 
-  meanAdj <- .rowMeans(adj, p^2, B)
-  dim(meanAdj) <- c(p,p)
-  rownames(meanAdj) = colnames(meanAdj) = object$varnames
-  sparsity <- sum(meanAdj)/choose(p,2)
+    out <- c(out, list(adj=meanAdj, sparsity=sparsity, B=B, p=p))
+    out$DAGscores <- unlist(out$trace)
+    out$partitionscores <- unlist(out$traceadd$partitionscores)
+    out <- c(out, out$traceadd)
+    out <- out[names(out) != "traceadd"]
 
-  out <- c(object, list(adj=meanAdj, sparsity=sparsity, B=B, p=p))
-  out$DAGscores <- unlist(out$DAGscores)
-  out$partitionscores <- unlist(out$partitionscores)
+  }
+
   class(out) <- "summary_MCMCchain"
 
   out
 }
+
+# ##' Summarise output from MCMC
+# ##'
+# ##' @param object output from \code{BiDAG} package
+# ##' @param ... other arguments
+# ##'
+# ##' @details Constructs the average adjacency matrix
+# ##' and mean sparsity level.  Replaces list of DAG and partition
+# ##' scores with vectors.  Also has a print and plot
+# ##' method.
+# ##'
+# ##' @export
+# summary.MCMCtrace <- function(object, ...) {
+#   B <- length(object$incidence)
+#   p <- nrow(object$incidence[[1]])
+#
+#   adj <- unlist(object$incidence)
+#   dim(adj) <- c(p,p,B)
+#
+#   meanAdj <- .rowMeans(adj, p^2, B)
+#   dim(meanAdj) <- c(p,p)
+#   rownames(meanAdj) = colnames(meanAdj) = object$varnames
+#   sparsity <- sum(meanAdj)/choose(p,2)
+#
+#   out <- c(object, list(adj=meanAdj, sparsity=sparsity, B=B, p=p))
+#   out$DAGscores <- unlist(out$DAGscores)
+#   out$partitionscores <- unlist(out$partitionscores)
+#   class(out) <- "summary_MCMCchain"
+#
+#   out
+# }
 
 ##' @export
 print.summary_MCMCchain <- function(x, digits = max(2L, getOption("digits") - 4L), ...) {

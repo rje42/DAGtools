@@ -15,14 +15,17 @@ fit_mcmc(data, scoretype = "bge", iterations, ...)
 
 \item{...}{other arguments to pass to \code{partitionMCMC}}
 }
+\value{
+An object of class
+\code{summary_MCMCchain}.
+}
 \description{
 Set up MCMC Chain
 }
 \details{
 This is basically a wrapper for
 BiDAG's \code{scoreparameters()} and \code{partitionMCMC()},
-but which augments
-the chain with the variable names extracted
-from the original data set.  Returns an object of class
-\code{MCMCchain}.
+but which augments the chain with an array of sampled adjacencies, the
+number of samples and variables, and the average adjacency.  Variable
+names are also extracted from the original data set.
 }

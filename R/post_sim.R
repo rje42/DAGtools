@@ -230,9 +230,9 @@ augment_mcmc <- function(object, dat, ..., verbose=TRUE, force=FALSE) {
       return(object)
     }
   }
-  B <- length(object$incidence)
+  B <- object$B
   n <- nrow(dat)
-  p <- ncol(dat)
+  p <- object$p
 
   if (is.null(object$varnames)) object$varnames <- names(dat)
 
@@ -288,9 +288,19 @@ merge_chain <- function(object, ...) {
 
   out <- purrr::transpose(object)
 
+  ## sort out info
+  out$info <- purrr::transpose(out$info)
+  out$info$iterations <- sum(unlist(out$info$iterations))
+  out$info$samplesteps <- sum(unlist(out$info$samplesteps))
+  out$info$DBN <- out$info$DBN[[1]]
+  out$info$algo <- out$info$algo[[1]]
+  out$info$spacealgo <- out$info$spacealgo[[1]]
+  out$info$sampletype <- out$info$sampletype[[1]]
+
   ## flatten lists of doubles
-  wh <- names(out) != "adj"
+  wh <- !(names(out) %in% c("adj", "info"))
   out[wh] <- Map(purrr::flatten, out[wh])
+  out$partitionscores <- unlist(out$partitionscores)
 
   ## unique ones should just be given once
   uq <- names(out) %in% c("varnames", "varnames_short", "p", "n")
