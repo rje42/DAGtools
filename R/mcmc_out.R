@@ -57,6 +57,8 @@ fit_multiple <- function(data_sets, scoretype="bge", iterations,  ...)  {
 ##' @export
 fit_mcmc <- function(data, scoretype="bge", iterations,  ...)  {
 
+  if (is.data.frame(data)) data <- as.matrix(data)
+
   myScore <- scoreparameters(scoretype=scoretype, data=data)
   out <- partitionMCMC(myScore, iterations=iterations, verbose=FALSE, ...)
   out$varnames <- names(data)
@@ -66,7 +68,13 @@ fit_mcmc <- function(data, scoretype="bge", iterations,  ...)  {
     p <- nrow(out$DAG)
 
     ## get adjacencies
-    adj <- unlist(out$traceadd$incidence)
+    As <- lapply(out$traceadd$incidence, as.matrix)
+    # pck_atr <- attr(class(As[[1]]), "package")
+    # if (!is.null(pck_atr) && pck_atr == "Matrix") {
+    #   As <- lapply(As, as.matrix)
+    # }
+
+    adj <- unlist(As)
     dim(adj) <- c(p,p,B)
 
     meanAdj <- .rowMeans(adj, p^2, B)
@@ -79,7 +87,7 @@ fit_mcmc <- function(data, scoretype="bge", iterations,  ...)  {
     out$partitionscores <- unlist(out$traceadd$partitionscores)
     out <- c(out, out$traceadd)
     out <- out[names(out) != "traceadd"]
-
+    out$incidence <- As
   }
 
   class(out) <- "summary_MCMCchain"

@@ -1,9 +1,9 @@
 Package: DAGtools
 Title: Tools for fitting and analysing DAGs via MCMC
-Version: 0.2.0
+Version: 0.3.1
 Authors@R: person("Robin", "Evans", email = "evans@stats.ox.ac.uk", role = c("aut", "cre"))
 Description: Tools for fitting and analysing DAGs, especially MCMC output.
-Depends: R (>= 3.5.0), rje, BiDAG (>= 2.0)
+Depends: R (>= 3.5.0), rje, BiDAG (>= 2.1)
 Imports: dplyr, 
          ggplot2, 
          graph,
@@ -16,7 +16,7 @@ Imports: dplyr,
 License: GPL-2
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.1
 Suggests: knitr, rmarkdown, 
     testthat
 VignetteBuilder: knitr
