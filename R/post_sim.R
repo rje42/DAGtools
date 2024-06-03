@@ -244,7 +244,7 @@ augment_mcmc <- function(object, dat, ..., verbose=TRUE, force=FALSE) {
   ## go through sampled graphs, sampling from posterior
   ## distribution of each model.  Record causal effects
   for (i in seq_len(B)) {
-    gr <- object$incidence[[i]]
+    gr <- as.matrix(object$incidence[[i]])
     Sigma[[i]] <- genSamp(gr, rep(0,p), S, n)
     tmp <- params(Sigma[[i]], gr)
     betas[[i]] <- tmp$B

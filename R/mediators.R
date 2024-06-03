@@ -67,7 +67,7 @@ sum_causal_paths <- function(object, i, j, digits=2, alpha=0.1, show=TRUE, indir
     rownames(indir_eff) <- rownames(indir_eff_r) <- nms
     colnames(indir_eff) <- colnames(indir_eff_r) <- c("mean", "lq", "uq", "prop")
 
-    for (v in 1:p) {
+    for (v in seq_len(p)) {
       if (v==i || v==j) next
       tmp <- CauEff[i,v,wh_to]*CauEff[v,j,wh_to]
       tmp_r <- CauEff[j,v,wh_from]*CauEff[v,i,wh_from]
@@ -75,17 +75,18 @@ sum_causal_paths <- function(object, i, j, digits=2, alpha=0.1, show=TRUE, indir
       indir_eff_r[v,] <- my_sum(tmp_r, alpha=alpha)
     }
 
-    indir_eff <- indir_eff[-c(i,j),]
-    indir_eff <- indir_eff[order(-abs(indir_eff[,1])),]
-    indir_eff_r <- indir_eff_r[-c(i,j),]
-    indir_eff_r <- indir_eff_r[order(-abs(indir_eff_r[,1])),]
+    indir_eff <- indir_eff[-c(i,j),,drop=FALSE]
+    indir_eff <- indir_eff[order(-abs(indir_eff[,1])),,drop=FALSE]
+    indir_eff_r <- indir_eff_r[-c(i,j),,drop=FALSE]
+    indir_eff_r <- indir_eff_r[order(-abs(indir_eff_r[,1])),,drop=FALSE]
 
     if (show) {
       for (v in seq_len(nrow(indir_eff))) {
-        cat(nms[i], " --> ", rownames(indir_eff)[v], " --> ", nms[j], "  :  (")
-        cat(signif(100*indir_eff[v,4], digits), "%)  ", round(indir_eff[v,1], digits), "(", round(indir_eff[v,2],digits), ", ", round(indir_eff[v,3],digits), ")\n", sep="")
+        if (!is.na(indir_eff[v,4]) && indir_eff[v,4] > 0) {
+          cat(nms[i], " --> ", rownames(indir_eff)[v], " --> ", nms[j], "  :  (")
+          cat(signif(100*indir_eff[v,4], digits), "%)  ", round(indir_eff[v,1], digits), " (", round(indir_eff[v,2],digits), ", ", round(indir_eff[v,3],digits), ")\n", sep="")
+        }
       }
-
       cat("\n")
     }
   }
@@ -101,8 +102,10 @@ sum_causal_paths <- function(object, i, j, digits=2, alpha=0.1, show=TRUE, indir
 
     if (indirect) {
       for (v in seq_len(nrow(indir_eff_r))) {
-        cat(nms[j], " --> ", rownames(indir_eff_r)[v], " --> ", nms[i], "  :  (")
-        cat(signif(100*indir_eff_r[v,4],digits), "%)  ", round(indir_eff_r[v,1],digits), "(", round(indir_eff_r[v,2],digits), ", ", round(indir_eff_r[v,3],digits), ")\n", sep="")
+        if (!is.na(indir_eff_r[v,4]) && indir_eff_r[v,4] > 0) {
+          cat(nms[j], " --> ", rownames(indir_eff_r)[v], " --> ", nms[i], "  :  (")
+          cat(signif(100*indir_eff_r[v,4],digits), "%)  ", round(indir_eff_r[v,1],digits), " (", round(indir_eff_r[v,2],digits), ", ", round(indir_eff_r[v,3],digits), ")\n", sep="")
+        }
       }
     }
     cat("\n")
